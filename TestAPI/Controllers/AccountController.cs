@@ -5,6 +5,7 @@ using System.Security.Cryptography;
 using System.Text;
 using TestAPI.Data;
 using TestAPI.Dto;
+using TestAPI.Interfaces;
 using TestAPI.Models;
 
 namespace TestAPI.Controllers
@@ -13,20 +14,22 @@ namespace TestAPI.Controllers
     [Route("[controller]")]
     public class AccountController: Controller
     {
+        private readonly ITokenService _tokenService;
         private readonly DataContext _context;
 
-        public AccountController(DataContext context)
+        public AccountController(DataContext context, ITokenService tokenService)
         {
+            _tokenService = tokenService;
             _context = context;
         }
 
         [HttpPost("register")]
-        public async Task<ActionResult<User>> CreateUser(RegisterDto register)
+        public async Task<ActionResult<UserDto>> CreateUser(RegisterDto register)
         {
             if (register.Username != null && await UserExists(register.Username))
                 return BadRequest("User already exists.");
             using var hmac = new HMACSHA512();
-            if(register.Username != null)
+            if (register.Username != null)
             {
                 var user = new User()
                 {
@@ -36,13 +39,19 @@ namespace TestAPI.Controllers
                 };
                 await _context.Users.AddAsync(user);
                 await _context.SaveChangesAsync();
+
+                return new UserDto
+                {
+                    Username = user.Username,
+                    Token = _tokenService.CreateToken(user)
+                };
             }
 
             return Ok();
         }
 
         [HttpPost("login")]
-        public async Task<ActionResult<User>> LoginUser(LoginDto login)
+        public async Task<ActionResult<UserDto>> LoginUser(LoginDto login)
         {
             var user = await _context.Users.Where(u => u.Username == login.Username).FirstOrDefaultAsync();
 
@@ -61,7 +70,11 @@ namespace TestAPI.Controllers
                         return Unauthorized("Invalid password.");
                     }
                 }
-                return user;
+                return new UserDto
+                {
+                    Username = user.Username,
+                    Token = _tokenService.CreateToken(user)
+                };
             }
             return NoContent();
         }
