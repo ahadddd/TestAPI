@@ -1,11 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using TestAPI.Data;
+using TestAPI.Interfaces;
+using TestAPI.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddDbContext<DataContext>(options =>
 {
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection"));
@@ -25,12 +28,12 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.UseAuthorization();
-
 app.UseCors(options =>
 {
-    options.AllowAnyHeader().AllowAnyMethod().AllowAnyOrigin();
+    options.AllowAnyHeader().AllowAnyMethod().WithOrigins("http://localhost:4200");
 });
+
+app.UseAuthorization();
 
 app.MapControllers();
 
